@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NEON TETRIS - 俄羅斯方塊挑戰</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --font-tech: 'Chakra Petch', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+    body {
+      font-family: var(--font-body);
+      background: radial-gradient(circle at 50% 20%, #151a30 0%, #080a14 60%, #030408 100%);
+      color: #f1f5f9;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .tech-font {
+      font-family: var(--font-tech);
+      letter-spacing: 0.05em;
+    }
+    .neon-border {
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 15px rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    .neon-card {
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+    .neon-text-cyan {
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+    .neon-text-gold {
+      text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 8px rgba(244, 114, 182, 0.6);
+    }
+    @keyframes pulse-skill {
+      0%, 100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 4px #f43f5e); }
+      50% { transform: scale(1.08); opacity: 0.9; filter: drop-shadow(0 0 12px #fb7185); }
+    }
+    .skill-badge-pulse {
+      animation: pulse-skill 1.4s infinite ease-in-out;
+    }
+    /* Touch Key Button feedback */
+    .ctrl-btn {
+      touch-action: manipulation;
+      transition: all 0.08s ease;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .ctrl-btn:active {
+      transform: scale(0.92);
+      background: rgba(56, 189, 248, 0.25);
+      border-color: rgba(56, 189, 248, 0.6);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden antialiased">
+
+  <header class="w-full max-w-5xl mx-auto pt-3 pb-2 px-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-8 bg-gradient-to-b from-cyan-400 to-indigo-600 rounded-sm shadow-[0_0_10px_#38bdf8]"></div>
+      <h1 class="tech-font text-2xl md:text-3xl font-bold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-sky-200 to-fuchsia-400">
+        NEON<span class="text-cyan-400">.</span>TETRIS
+      </h1>
+    </div>
+    <div class="flex items-center gap-3 text-xs md:text-sm">
+      <div class="neon-card px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-700/60">
+        <span class="text-slate-400 font-semibold">目標:</span>
+        <span class="tech-font text-amber-400 font-bold">30 行通關</span>
+      </div>
+      <button id="btn-pause-header" class="neon-card px-3 py-1.5 rounded-lg hover:border-cyan-400/50 text-cyan-300 text-xs font-semibold tracking-wide transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        <span id="header-pause-txt">暫停 (P)</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="w-full max-w-4xl mx-auto px-3 flex-1 flex flex-col items-center justify-center">
+    <div class="w-full flex flex-col md:flex-row items-center md:items-start justify-center gap-4 lg:gap-6 my-1">
+      
+      <!-- Left / Side Info: Score, Goal, Level, Timer -->
+      <aside class="w-full md:w-48 flex md:flex-col gap-2.5 justify-between">
+        <!-- Score Card -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full border-l-2 border-l-cyan-400">
+          <div class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-wider">SCORE</div>
+          <div id="stat-score" class="tech-font text-xl md:text-2xl font-bold text-cyan-400 neon-text-cyan">0</div>
+        </div>
+
+        <!-- High Score Card -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full border-l-2 border-l-amber-400">
+          <div class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-wider">HIGH SCORE</div>
+          <div id="stat-high-score" class="tech-font text-lg md:text-xl font-bold text-amber-400 neon-text-gold">0</div>
+        </div>
+
+        <!-- Lines Cleared & Goal -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full border-l-2 border-l-emerald-400">
+          <div class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-wider">LINES / GOAL</div>
+          <div class="flex items-baseline gap-1">
+            <span id="stat-lines" class="tech-font text-xl md:text-2xl font-bold text-emerald-400">0</span>
+            <span class="text-xs text-slate-500 font-bold">/ 30</span>
+          </div>
+          <!-- Progress bar -->
+          <div class="w-full bg-slate-800/80 rounded-full h-1.5 mt-1 overflow-hidden">
+            <div id="goal-progress-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Level & Timer -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full flex justify-between items-center border-l-2 border-l-fuchsia-400">
+          <div>
+            <div class="text-[10px] text-slate-400 font-semibold">LEVEL</div>
+            <div id="stat-level" class="tech-font text-lg font-bold text-fuchsia-400 neon-text-pink">1</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] text-slate-400 font-semibold">TIME</div>
+            <div id="stat-timer" class="tech-font text-lg font-bold text-slate-200">00:00</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center: Main Tetris Board Canvas -->
+      <div class="relative flex flex-col items-center">
+        <div class="relative p-1.5 rounded-2xl neon-card neon-border bg-slate-950/80">
+          <canvas id="tetris-canvas" width="280" height="560" class="rounded-xl block bg-slate-950/95 shadow-2xl"></canvas>
+
+          <!-- Pause Overlay inside canvas frame -->
+          <div id="pause-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm rounded-2xl hidden flex flex-col items-center justify-center p-6 text-center z-10">
+            <div class="w-12 h-12 rounded-full border border-cyan-400/50 flex items-center justify-center mb-3 bg-cyan-950/40 text-cyan-400">
+              <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </div>
+            <h3 class="tech-font text-2xl font-bold tracking-widest text-cyan-300">GAME PAUSED</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-4">按 P 或 點擊下方繼續挑戰</p>
+            <button id="btn-resume" class="px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-semibold text-sm tracking-wide shadow-lg shadow-cyan-500/30 transition transform active:scale-95">
+              繼續遊戲
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Next Piece & Last Game Info -->
+      <aside class="w-full md:w-48 flex md:flex-col gap-2.5 justify-between">
+        <!-- Next Piece Preview -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full flex flex-col items-center">
+          <div class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-wider mb-2 self-start flex items-center justify-between w-full">
+            <span>NEXT PIECE</span>
+            <span id="skill-indicator" class="hidden text-[10px] px-1.5 py-0.2 rounded font-bold uppercase skill-badge-pulse"></span>
+          </div>
+          <canvas id="next-canvas" width="110" height="110" class="rounded-lg bg-slate-950/60 border border-slate-800"></canvas>
+        </div>
+
+        <!-- Special Skills Legend Card -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full border-l-2 border-l-rose-500">
+          <div class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-wider mb-1.5 flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_#f43f5e]"></span>
+            <span>特殊技能方塊 (約 4% 機率)</span>
+          </div>
+          <div class="text-[11px] text-slate-300 space-y-1.5">
+            <div class="flex items-center gap-2 bg-slate-900/60 p-1 rounded-lg">
+              <span class="text-sm">💣</span>
+              <div>
+                <div class="font-bold text-rose-400">炸彈 (Bomb)</div>
+                <div class="text-[10px] text-slate-400">著陸引爆 3x3 方塊群</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/60 p-1 rounded-lg">
+              <span class="text-sm">⚡</span>
+              <div>
+                <div class="font-bold text-cyan-300">雷射 (Laser)</div>
+                <div class="text-[10px] text-slate-400">直接粉碎貫穿整橫行</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Last Run Record Card -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full">
+          <div class="text-[10px] md:text-xs text-slate-400 font-semibold tracking-wider mb-1 flex items-center justify-between">
+            <span>上次紀錄</span>
+            <span id="last-game-status" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">無紀錄</span>
+          </div>
+          <div class="text-xs text-slate-300 space-y-1 mt-1.5">
+            <div class="flex justify-between"><span class="text-slate-500">得分:</span> <span id="last-game-score" class="tech-font font-bold text-slate-200">-</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">消行:</span> <span id="last-game-lines" class="tech-font text-slate-200">-</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">耗時:</span> <span id="last-game-time" class="tech-font text-slate-200">-</span></div>
+          </div>
+        </div>
+
+        <!-- Controls Guide (Desktop tooltip) -->
+        <div class="neon-card p-3 rounded-xl flex-1 md:w-full hidden md:block text-[11px] text-slate-400 space-y-1">
+          <div class="text-cyan-400 font-semibold mb-1">操作提示:</div>
+          <div class="flex justify-between"><span>← →</span> <span class="text-slate-300">左右移動</span></div>
+          <div class="flex justify-between"><span>↑ / W</span> <span class="text-slate-300">旋轉方塊</span></div>
+          <div class="flex justify-between"><span>↓ / S</span> <span class="text-slate-300">加速下落</span></div>
+          <div class="flex justify-between"><span>Space</span> <span class="text-cyan-300 font-semibold">硬降落地</span></div>
+          <div class="flex justify-between"><span>P / ESC</span> <span class="text-slate-300">暫停遊戲</span></div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <section class="w-full max-w-md mx-auto px-4 pb-3 pt-1 select-none">
+    <div class="grid grid-cols-5 gap-2">
+      <!-- Left Move -->
+      <button id="ctrl-left" class="ctrl-btn h-12 rounded-xl flex items-center justify-center text-slate-200 shadow-md">
+        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      </button>
+
+      <!-- Soft Drop -->
+      <button id="ctrl-down" class="ctrl-btn h-12 rounded-xl flex items-center justify-center text-slate-200 shadow-md">
+        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </button>
+
+      <!-- Right Move -->
+      <button id="ctrl-right" class="ctrl-btn h-12 rounded-xl flex items-center justify-center text-slate-200 shadow-md">
+        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </button>
+
+      <!-- Rotate -->
+      <button id="ctrl-rotate" class="ctrl-btn h-12 rounded-xl flex flex-col items-center justify-center text-cyan-300 border-cyan-500/30 shadow-md">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+        <span class="text-[9px] font-semibold mt-0.5">旋轉</span>
+      </button>
+
+      <!-- Hard Drop -->
+      <button id="ctrl-hard-drop" class="ctrl-btn h-12 rounded-xl flex flex-col items-center justify-center text-amber-300 border-amber-500/30 shadow-md">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 15v2H5v-2h14m-2-5l-5 5-5-5h3V4h4v6h3z"/></svg>
+        <span class="text-[9px] font-semibold mt-0.5">落底</span>
+      </button>
+    </div>
+  </section>
+
+  <div id="result-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4 z-50 transition-opacity">
+    <div class="neon-card w-full max-w-sm rounded-2xl p-6 text-center border-t-2 relative overflow-hidden shadow-2xl animate-fade-in" id="modal-box">
+      <!-- Glow effect top strip -->
+      <div id="modal-strip" class="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-24 bg-cyan-500/20 blur-2xl rounded-full"></div>
+
+      <!-- Result Badge & Title -->
+      <div id="modal-badge" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+        GAME FINISHED
+      </div>
+      <h2 id="modal-title" class="tech-font text-3xl font-extrabold tracking-wider mb-1">VICTORY</h2>
+      <p id="modal-subtitle" class="text-xs text-slate-400 mb-6">達成消除 30 行目標，恭喜順利通關！</p>
+
+      <!-- New High Score banner (conditional) -->
+      <div id="modal-new-record" class="hidden mb-4 py-1.5 px-3 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold tech-font animate-pulse">
+        ★ NEW HIGH SCORE ★ 創下個人歷史最高紀錄！
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 gap-3 mb-6 text-left">
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+          <div class="text-[10px] text-slate-400">本次得分</div>
+          <div id="modal-score" class="tech-font text-xl font-bold text-cyan-300">0</div>
+        </div>
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+          <div class="text-[10px] text-slate-400">消除行數</div>
+          <div id="modal-lines" class="tech-font text-xl font-bold text-emerald-400">0 / 30</div>
+        </div>
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+          <div class="text-[10px] text-slate-400">遊玩時間</div>
+          <div id="modal-time" class="tech-font text-lg font-bold text-slate-200">00:00</div>
+        </div>
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+          <div class="text-[10px] text-slate-400">歷史最高</div>
+          <div id="modal-best" class="tech-font text-lg font-bold text-amber-400">0</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-3">
+        <button id="btn-restart" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 font-bold text-sm tracking-wide shadow-lg shadow-cyan-500/25 transition transform active:scale-95 text-white">
+          再來一局 (Restart)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Game Configuration Constants
+    const COLS = 10;
+    const ROWS = 20;
+    const BLOCK_SIZE = 28; // 280 x 560 canvas
+    const TARGET_LINES = 30; // Clearance goal
+
+    // Canvas elements & context
+    const canvas = document.getElementById('tetris-canvas');
+    const ctx = canvas.getContext('2d');
+    const nextCanvas = document.getElementById('next-canvas');
+    const nextCtx = nextCanvas.getContext('2d');
+
+    // UI elements
+    const statScore = document.getElementById('stat-score');
+    const statHighScore = document.getElementById('stat-high-score');
+    const statLines = document.getElementById('stat-lines');
+    const statLevel = document.getElementById('stat-level');
+    const statTimer = document.getElementById('stat-timer');
+    const goalProgressBar = document.getElementById('goal-progress-bar');
+    const pauseOverlay = document.getElementById('pause-overlay');
+    const headerPauseTxt = document.getElementById('header-pause-txt');
+
+    // Result Modal elements
+    const resultModal = document.getElementById('result-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalSubtitle = document.getElementById('modal-subtitle');
+    const modalBadge = document.getElementById('modal-badge');
+    const modalScore = document.getElementById('modal-score');
+    const modalLines = document.getElementById('modal-lines');
+    const modalTime = document.getElementById('modal-time');
+    const modalBest = document.getElementById('modal-best');
+    const modalNewRecord = document.getElementById('modal-new-record');
+    const lastGameStatus = document.getElementById('last-game-status');
+    const lastGameScore = document.getElementById('last-game-score');
+    const lastGameLines = document.getElementById('last-game-lines');
+    const lastGameTime = document.getElementById('last-game-time');
+
+    // 7 Classic Tetromino shapes with color palettes and neon glows
+    const PIECES = {
+      I: {
+        shape: [[0,0,0,0], [1,1,1,1], [0,0,0,0], [0,0,0,0]],
+        color: '#06b6d4', // Cyan
+        border: '#67e8f9',
+        glow: 'rgba(6, 182, 212, 0.7)'
+      },
+      J: {
+        shape: [[1,0,0], [1,1,1], [0,0,0]],
+        color: '#3b82f6', // Blue
+        border: '#93c5fd',
+        glow: 'rgba(59, 130, 246, 0.7)'
+      },
+      L: {
+        shape: [[0,0,1], [1,1,1], [0,0,0]],
+        color: '#f97316', // Orange
+        border: '#fdba74',
+        glow: 'rgba(249, 115, 22, 0.7)'
+      },
+      O: {
+        shape: [[1,1], [1,1]],
+        color: '#eab308', // Yellow
+        border: '#fef08a',
+        glow: 'rgba(234, 179, 8, 0.7)'
+      },
+      S: {
+        shape: [[0,1,1], [1,1,0], [0,0,0]],
+        color: '#10b981', // Green
+        border: '#6ee7b7',
+        glow: 'rgba(16, 185, 129, 0.7)'
+      },
+      T: {
+        shape: [[0,1,0], [1,1,1], [0,0,0]],
+        color: '#a855f7', // Purple
+        border: '#d8b4fe',
+        glow: 'rgba(168, 85, 247, 0.7)'
+      },
+      Z: {
+        shape: [[1,1,0], [0,1,1], [0,0,0]],
+        color: '#f43f5e', // Rose
+        border: '#fda4af',
+        glow: 'rgba(244, 63, 94, 0.7)'
+      }
+    };
+    const PIECE_KEYS = Object.keys(PIECES);
+
+    // Special Skill Pieces definitions (Single 1x1 cells for precision targeting)
+    const SKILL_PIECES = {
+      BOMB: {
+        type: 'bomb',
+        name: '炸彈',
+        shape: [[1]],
+        color: '#e11d48',
+        border: '#fda4af',
+        glow: 'rgba(225, 29, 72, 0.9)',
+        icon: '💣'
+      },
+      LASER: {
+        type: 'laser',
+        name: '雷射',
+        shape: [[1]],
+        color: '#0284c7',
+        border: '#bae6fd',
+        glow: 'rgba(56, 189, 248, 0.95)',
+        icon: '⚡'
+      }
+    };
+    const SKILL_KEYS = Object.keys(SKILL_PIECES);
+
+    let grid = createEmptyGrid();
+    let currentPiece = null;
+    let nextPiece = null;
+    let dropCounter = 0;
+    let dropInterval = 1000;
+    let lastTime = 0;
+    let isPaused = false;
+    let isGameOver = false;
+    let isVictory = false;
+    let animationFrameId = null;
+
+    // Particle system & screen shake state
+    let particles = [];
+    let screenShake = 0;
+    const skillIndicator = document.getElementById('skill-indicator');
+
+    let score = 0;
+    let lines = 0;
+    let level = 1;
+    let elapsedSeconds = 0;
+    let timerInterval = null;
+    let highScore = 0;
+
+    // Helper: Initialize empty grid (20 rows x 10 cols)
+    function createEmptyGrid() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    }
+
+    function loadSavedRecords() {
+      try {
+        const savedHigh = localStorage.getItem('tetris_high_score');
+        if (savedHigh !== null) {
+          const parsed = JSON.parse(savedHigh);
+          highScore = typeof parsed === 'object' ? parsed.score : Number(savedHigh);
+        } else {
+          highScore = 0;
+        }
+        statHighScore.innerText = highScore.toLocaleString();
+
+        const lastGame = localStorage.getItem('tetris_last_game');
+        if (lastGame) {
+          const data = JSON.parse(lastGame);
+          lastGameScore.innerText = data.score.toLocaleString();
+          lastGameLines.innerText = data.lines;
+          lastGameTime.innerText = formatTime(data.seconds);
+          lastGameStatus.innerText = data.result === 'VICTORY' ? '通關' : '失敗';
+          lastGameStatus.className = data.result === 'VICTORY'
+            ? 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold'
+            : 'text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold';
+        }
+      } catch (err) {
+        console.error('Failed to load LocalStorage:', err);
+      }
+    }
+
+    function saveGameRecords(isWin) {
+      let isNewHigh = false;
+      if (score > highScore) {
+        highScore = score;
+        isNewHigh = true;
+        try {
+          localStorage.setItem('tetris_high_score', JSON.stringify({
+            score: highScore,
+            date: new Date().toISOString()
+          }));
+        } catch (e) { console.error(e); }
+        statHighScore.innerText = highScore.toLocaleString();
+      }
+
+      const lastGameData = {
+        score: score,
+        lines: lines,
+        seconds: elapsedSeconds,
+        level: level,
+        result: isWin ? 'VICTORY' : 'GAME_OVER',
+        date: new Date().toISOString()
+      };
+
+      try {
+        localStorage.setItem('tetris_last_game', JSON.stringify(lastGameData));
+      } catch (e) { console.error(e); }
+
+      // Update sidebar summary directly
+      lastGameScore.innerText = lastGameData.score.toLocaleString();
+      lastGameLines.innerText = lastGameData.lines;
+      lastGameTime.innerText = formatTime(lastGameData.seconds);
+      lastGameStatus.innerText = isWin ? '通關' : '失敗';
+      lastGameStatus.className = isWin
+        ? 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold'
+        : 'text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold';
+
+      return isNewHigh;
+    }
+
+    function createPiece(key) {
+      // 約 4% 機率出現特殊技能方塊 (落在 2% ~ 5% 區間，保持稀有與驚喜感)
+      const rollSkill = Math.random() < 0.04;
+      if (rollSkill) {
+        const skillKey = SKILL_KEYS[Math.floor(Math.random() * SKILL_KEYS.length)];
+        const proto = SKILL_PIECES[skillKey];
+        return {
+          type: proto.type,
+          name: proto.name,
+          icon: proto.icon,
+          shape: [[1]],
+          color: proto.color,
+          border: proto.border,
+          glow: proto.glow,
+          x: Math.floor(COLS / 2),
+          y: 0
+        };
+      }
+
+      // Classic Tetromino
+      const proto = PIECES[key || PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)]];
+      return {
+        type: 'normal',
+        shape: proto.shape.map(row => [...row]),
+        color: proto.color,
+        border: proto.border,
+        glow: proto.glow,
+        x: Math.floor(COLS / 2) - Math.ceil(proto.shape[0].length / 2),
+        y: 0
+      };
+    }
+
+    function spawnNextPiece() {
+      if (!nextPiece) {
+        nextPiece = createPiece();
+      }
+      currentPiece = nextPiece;
+      nextPiece = createPiece();
+      drawNextPreview();
+
+      // Check spawn collision -> Game Over
+      if (checkCollision(currentPiece.x, currentPiece.y, currentPiece.shape)) {
+        endGame(false);
+      }
+    }
+
+    function triggerScreenShake(magnitude = 8) {
+      screenShake = magnitude;
+    }
+
+    function spawnExplosionParticles(centerX, centerY, color, count = 28) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5 + 2;
+        particles.push({
+          x: centerX,
+          y: centerY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color: color,
+          size: Math.random() * 4 + 2,
+          life: 1,
+          decay: Math.random() * 0.03 + 0.02
+        });
+      }
+    }
+
+    function checkCollision(offsetX, offsetY, matrix) {
+      for (let y = 0; y < matrix.length; y++) {
+        for (let x = 0; x < matrix[y].length; x++) {
+          if (matrix[y][x]) {
+            const newX = offsetX + x;
+            const newY = offsetY + y;
+            if (newX < 0 || newX >= COLS || newY >= ROWS) {
+              return true;
+            }
+            if (newY >= 0 && grid[newY][newX]) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function rotateMatrix(matrix) {
+      const N = matrix.length;
+      const result = [];
+      for (let i = 0; i < N; i++) {
+        result.push(new Array(N).fill(0));
+      }
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          result[x][N - 1 - y] = matrix[y][x];
+        }
+      }
+      return result;
+    }
+
+    function rotateCurrentPiece() {
+      if (!currentPiece || isPaused || isGameOver || isVictory) return;
+      const rotated = rotateMatrix(currentPiece.shape);
+      const originalX = currentPiece.x;
+
+      // Wall kick attempts: [0, +1, -1, +2, -2]
+      const offsets = [0, 1, -1, 2, -2];
+      for (let i = 0; i < offsets.length; i++) {
+        const testX = originalX + offsets[i];
+        if (!checkCollision(testX, currentPiece.y, rotated)) {
+          currentPiece.x = testX;
+          currentPiece.shape = rotated;
+          return;
+        }
+      }
+    }
+
+    function moveLeft() {
+      if (!currentPiece || isPaused || isGameOver || isVictory) return;
+      if (!checkCollision(currentPiece.x - 1, currentPiece.y, currentPiece.shape)) {
+        currentPiece.x--;
+      }
+    }
+
+    function moveRight() {
+      if (!currentPiece || isPaused || isGameOver || isVictory) return;
+      if (!checkCollision(currentPiece.x + 1, currentPiece.y, currentPiece.shape)) {
+        currentPiece.x++;
+      }
+    }
+
+    function softDrop() {
+      if (!currentPiece || isPaused || isGameOver || isVictory) return;
+      if (!checkCollision(currentPiece.x, currentPiece.y + 1, currentPiece.shape)) {
+        currentPiece.y++;
+        score += 1;
+        updateScoreDisplay();
+      } else {
+        lockPiece();
+      }
+      dropCounter = 0;
+    }
+
+    function hardDrop() {
+      if (!currentPiece || isPaused || isGameOver || isVictory) return;
+      let dropDistance = 0;
+      while (!checkCollision(currentPiece.x, currentPiece.y + 1, currentPiece.shape)) {
+        currentPiece.y++;
+        dropDistance++;
+      }
+      score += dropDistance * 2;
+      updateScoreDisplay();
+      lockPiece();
+      dropCounter = 0;
+    }
+
+    function lockPiece() {
+      const shape = currentPiece.shape;
+      const pieceCenterX = (currentPiece.x + 0.5) * BLOCK_SIZE;
+      const pieceCenterY = (currentPiece.y + 0.5) * BLOCK_SIZE;
+
+      // Handle 💣 BOMB Piece
+      if (currentPiece.type === 'bomb') {
+        const targetX = currentPiece.x;
+        const targetY = currentPiece.y;
+        let destroyed = 0;
+
+        // Explode 3x3 surrounding cells
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const ny = targetY + dy;
+            const nx = targetX + dx;
+            if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
+              if (grid[ny][nx]) {
+                destroyed++;
+                grid[ny][nx] = 0;
+              }
+            }
+          }
+        }
+
+        spawnExplosionParticles(pieceCenterX, pieceCenterY, '#f43f5e', 36);
+        spawnExplosionParticles(pieceCenterX, pieceCenterY, '#fbbf24', 24);
+        triggerScreenShake(12);
+        score += (destroyed + 1) * 80;
+        updateScoreDisplay();
+
+        if (!isGameOver && !isVictory) {
+          spawnNextPiece();
+        }
+        return;
+      }
+
+      // Handle ⚡ LASER Piece
+      if (currentPiece.type === 'laser') {
+        const rowToClear = Math.min(ROWS - 1, Math.max(0, currentPiece.y));
+        let destroyedInRow = 0;
+
+        for (let col = 0; col < COLS; col++) {
+          if (grid[rowToClear][col]) destroyedInRow++;
+          grid[rowToClear][col] = 0;
+        }
+
+        // Shift rows above downward
+        grid.splice(rowToClear, 1);
+        grid.unshift(Array(COLS).fill(0));
+
+        // Particle beam horizontally across the board
+        for (let c = 0; c < COLS; c++) {
+          spawnExplosionParticles((c + 0.5) * BLOCK_SIZE, (rowToClear + 0.5) * BLOCK_SIZE, '#38bdf8', 4);
+        }
+        triggerScreenShake(9);
+        lines += 1;
+        score += 350 + (destroyedInRow * 50);
+
+        level = Math.floor(lines / 5) + 1;
+        dropInterval = Math.max(120, 1000 - (level - 1) * 90);
+        updateScoreDisplay();
+
+        if (lines >= TARGET_LINES) {
+          endGame(true);
+          return;
+        }
+
+        if (!isGameOver && !isVictory) {
+          spawnNextPiece();
+        }
+        return;
+      }
+
+      // Standard piece locking
+      for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+          if (shape[y][x]) {
+            const gridY = currentPiece.y + y;
+            const gridX = currentPiece.x + x;
+            if (gridY < 0) {
+              endGame(false);
+              return;
+            }
+            grid[gridY][gridX] = {
+              color: currentPiece.color,
+              border: currentPiece.border
+            };
+          }
+        }
+      }
+
+      clearLines();
+      if (!isGameOver && !isVictory) {
+        spawnNextPiece();
+      }
+    }
+
+    function clearLines() {
+      let linesCleared = 0;
+
+      for (let y = ROWS - 1; y >= 0; y--) {
+        const isFull = grid[y].every(cell => cell !== 0);
+        if (isFull) {
+          grid.splice(y, 1);
+          grid.unshift(Array(COLS).fill(0));
+          linesCleared++;
+          y++; // Re-evaluate the same index since rows shifted downward
+        }
+      }
+
+      if (linesCleared > 0) {
+        // Classic scoring table (scaled with Level)
+        const lineScores = [0, 100, 300, 500, 800];
+        score += (lineScores[linesCleared] || 1000) * level;
+        lines += linesCleared;
+
+        // Level up for every 5 lines cleared
+        level = Math.floor(lines / 5) + 1;
+        // Increase speed: base 1000ms down to min 120ms
+        dropInterval = Math.max(120, 1000 - (level - 1) * 90);
+
+        updateScoreDisplay();
+
+        // Check Victory Condition
+        if (lines >= TARGET_LINES) {
+          endGame(true);
+        }
+      }
+    }
+
+    function updateScoreDisplay() {
+      statScore.innerText = score.toLocaleString();
+      statLines.innerText = lines;
+      statLevel.innerText = level;
+
+      const progress = Math.min(100, (lines / TARGET_LINES) * 100);
+      goalProgressBar.style.width = `${progress}%`;
+    }
+
+    function drawBlock(context, x, y, size, color, border, icon = null) {
+      const px = x * size;
+      const py = y * size;
+
+      // Base block
+      context.fillStyle = color;
+      context.fillRect(px, py, size, size);
+
+      // Top & Left highlight (glass/bevel effect)
+      context.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      context.beginPath();
+      context.moveTo(px, py);
+      context.lineTo(px + size, py);
+      context.lineTo(px + size - 3, py + 3);
+      context.lineTo(px + 3, py + 3);
+      context.lineTo(px + 3, py + size - 3);
+      context.lineTo(px, py + size);
+      context.closePath();
+      context.fill();
+
+      // Bottom & Right shadow
+      context.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      context.beginPath();
+      context.moveTo(px + size, py);
+      context.lineTo(px + size, py + size);
+      context.lineTo(px, py + size);
+      context.lineTo(px + 3, py + size - 3);
+      context.lineTo(px + size - 3, py + size - 3);
+      context.lineTo(px + size - 3, py + 3);
+      context.closePath();
+      context.fill();
+
+      // Outer delicate neon border
+      context.strokeStyle = border || 'rgba(255, 255, 255, 0.2)';
+      context.lineWidth = 1;
+      context.strokeRect(px + 0.5, py + 0.5, size - 1, size - 1);
+
+      // Draw skill icon if present
+      if (icon) {
+        context.font = `${Math.floor(size * 0.65)}px sans-serif`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(icon, px + size / 2, py + size / 2 + 1);
+      }
+    }
+
+    // Ghost piece (shows where the piece will drop)
+    function drawGhostPiece() {
+      if (!currentPiece) return;
+      let ghostY = currentPiece.y;
+      while (!checkCollision(currentPiece.x, ghostY + 1, currentPiece.shape)) {
+        ghostY++;
+      }
+      if (ghostY === currentPiece.y) return; // Already on ground
+
+      const shape = currentPiece.shape;
+      ctx.save();
+      for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+          if (shape[y][x]) {
+            const px = (currentPiece.x + x) * BLOCK_SIZE;
+            const py = (ghostY + y) * BLOCK_SIZE;
+            ctx.strokeStyle = currentPiece.color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([3, 3]);
+            ctx.strokeRect(px + 1.5, py + 1.5, BLOCK_SIZE - 3, BLOCK_SIZE - 3);
+            ctx.fillStyle = currentPiece.type !== 'normal' ? 'rgba(244, 63, 94, 0.12)' : 'rgba(255, 255, 255, 0.04)';
+            ctx.fillRect(px + 1.5, py + 1.5, BLOCK_SIZE - 3, BLOCK_SIZE - 3);
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawGridLines() {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= COLS; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * BLOCK_SIZE, 0);
+        ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= ROWS; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * BLOCK_SIZE);
+        ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+        ctx.stroke();
+      }
+    }
+
+    function render() {
+      // Clear game board
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      // Apply screen shake
+      if (screenShake > 0) {
+        const shakeX = (Math.random() - 0.5) * screenShake;
+        const shakeY = (Math.random() - 0.5) * screenShake;
+        ctx.translate(shakeX, shakeY);
+        screenShake *= 0.85;
+        if (screenShake < 0.2) screenShake = 0;
+      }
+
+      drawGridLines();
+
+      // Draw accumulated blocks on grid
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (grid[y][x]) {
+            drawBlock(ctx, x, y, BLOCK_SIZE, grid[y][x].color, grid[y][x].border);
+          }
+        }
+      }
+
+      // Draw active falling piece & its ghost projection
+      if (currentPiece) {
+        drawGhostPiece();
+        const shape = currentPiece.shape;
+        for (let y = 0; y < shape.length; y++) {
+          for (let x = 0; x < shape[y].length; x++) {
+            if (shape[y][x]) {
+              drawBlock(
+                ctx,
+                currentPiece.x + x,
+                currentPiece.y + y,
+                BLOCK_SIZE,
+                currentPiece.color,
+                currentPiece.border,
+                currentPiece.icon || null
+              );
+            }
+          }
+        }
+      }
+
+      // Render explosion/laser particle effects
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.96;
+        p.vy *= 0.96;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawNextPreview() {
+      nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+      if (!nextPiece) return;
+
+      if (nextPiece.type !== 'normal') {
+        skillIndicator.classList.remove('hidden');
+        if (nextPiece.type === 'bomb') {
+          skillIndicator.innerText = '💣 炸彈';
+          skillIndicator.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/40 skill-badge-pulse';
+        } else if (nextPiece.type === 'laser') {
+          skillIndicator.innerText = '⚡ 雷射';
+          skillIndicator.className = 'text-[10px] px-1.5 py-0.5 rounded font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 skill-badge-pulse';
+        }
+      } else {
+        skillIndicator.classList.add('hidden');
+      }
+
+      const shape = nextPiece.shape;
+      const size = nextPiece.type !== 'normal' ? 32 : 20;
+      const pieceWidth = shape[0].length * size;
+      const pieceHeight = shape.length * size;
+      const offsetX = Math.floor((nextCanvas.width - pieceWidth) / 2);
+      const offsetY = Math.floor((nextCanvas.height - pieceHeight) / 2);
+
+      for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+          if (shape[y][x]) {
+            drawBlock(
+              nextCtx,
+              (offsetX / size) + x,
+              (offsetY / size) + y,
+              size,
+              nextPiece.color,
+              nextPiece.border,
+              nextPiece.icon || null
+            );
+          }
+        }
+      }
+    }
+
+    function gameLoop(time = 0) {
+      if (isGameOver || isVictory) return;
+
+      const deltaTime = time - lastTime;
+      lastTime = time;
+
+      if (!isPaused) {
+        dropCounter += deltaTime;
+        if (dropCounter > dropInterval) {
+          if (!checkCollision(currentPiece.x, currentPiece.y + 1, currentPiece.shape)) {
+            currentPiece.y++;
+          } else {
+            lockPiece();
+          }
+          dropCounter = 0;
+        }
+        render();
+      }
+
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function formatTime(totalSeconds) {
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (!isPaused && !isGameOver && !isVictory) {
+          elapsedSeconds++;
+          statTimer.innerText = formatTime(elapsedSeconds);
+        }
+      }, 1000);
+    }
+
+    function togglePause() {
+      if (isGameOver || isVictory) return;
+      isPaused = !isPaused;
+      if (isPaused) {
+        pauseOverlay.classList.remove('hidden');
+        headerPauseTxt.innerText = '繼續 (P)';
+      } else {
+        pauseOverlay.classList.add('hidden');
+        headerPauseTxt.innerText = '暫停 (P)';
+        lastTime = performance.now();
+      }
+    }
+
+    function endGame(victory) {
+      isGameOver = !victory;
+      isVictory = victory;
+      cancelAnimationFrame(animationFrameId);
+      clearInterval(timerInterval);
+
+      // Save records and check high score
+      const isNewRecord = saveGameRecords(victory);
+
+      // Populate Modal Content
+      modalScore.innerText = score.toLocaleString();
+      modalLines.innerText = `${lines} / ${TARGET_LINES}`;
+      modalTime.innerText = formatTime(elapsedSeconds);
+      modalBest.innerText = highScore.toLocaleString();
+
+      if (isNewRecord) {
+        modalNewRecord.classList.remove('hidden');
+      } else {
+        modalNewRecord.classList.add('hidden');
+      }
+
+      const modalBox = document.getElementById('modal-box');
+      if (victory) {
+        modalTitle.innerText = 'VICTORY !';
+        modalTitle.className = 'tech-font text-3xl font-extrabold tracking-wider mb-1 text-emerald-400 neon-text-cyan';
+        modalSubtitle.innerText = '恭喜達成 30 行消除目標，完美通關！';
+        modalBadge.innerText = '任務達成 MISSION CLEAR';
+        modalBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+        modalBox.className = 'neon-card w-full max-w-sm rounded-2xl p-6 text-center border-t-2 border-t-emerald-400 relative overflow-hidden shadow-2xl';
+      } else {
+        modalTitle.innerText = 'GAME OVER';
+        modalTitle.className = 'tech-font text-3xl font-extrabold tracking-wider mb-1 text-rose-500';
+        modalSubtitle.innerText = '方塊已堆疊至頂部，再接再厲！';
+        modalBadge.innerText = '挑戰失敗';
+        modalBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3 bg-rose-500/20 text-rose-400 border border-rose-400/30';
+        modalBox.className = 'neon-card w-full max-w-sm rounded-2xl p-6 text-center border-t-2 border-t-rose-500 relative overflow-hidden shadow-2xl';
+      }
+
+      resultModal.classList.remove('hidden');
+      resultModal.classList.add('flex');
+    }
+
+    function initGame() {
+      // Reset state
+      grid = createEmptyGrid();
+      score = 0;
+      lines = 0;
+      level = 1;
+      elapsedSeconds = 0;
+      dropCounter = 0;
+      dropInterval = 1000;
+      isPaused = false;
+      isGameOver = false;
+      isVictory = false;
+      particles = [];
+      screenShake = 0;
+
+      // Reset UI elements
+      pauseOverlay.classList.add('hidden');
+      resultModal.classList.add('hidden');
+      resultModal.classList.remove('flex');
+      headerPauseTxt.innerText = '暫停 (P)';
+      statTimer.innerText = '00:00';
+      updateScoreDisplay();
+
+      // Initialize pieces
+      nextPiece = createPiece();
+      spawnNextPiece();
+
+      // Start timing & game loop
+      startTimer();
+      lastTime = performance.now();
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      // Prevent browser default scrolling with arrow keys / space
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+        e.preventDefault();
+      }
+
+      if (e.code === 'KeyP' || e.code === 'Escape') {
+        togglePause();
+        return;
+      }
+
+      if (isPaused || isGameOver || isVictory) return;
+
+      switch (e.code) {
+        case 'ArrowLeft':
+        case 'KeyA':
+          moveLeft();
+          break;
+        case 'ArrowRight':
+        case 'KeyD':
+          moveRight();
+          break;
+        case 'ArrowUp':
+        case 'KeyW':
+          rotateCurrentPiece();
+          break;
+        case 'ArrowDown':
+        case 'KeyS':
+          softDrop();
+          break;
+        case 'Space':
+          hardDrop();
+          break;
+      }
+    });
+
+    // Mobile / Touch controls binding
+    function bindTouchButton(id, action) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+
+      const trigger = (e) => {
+        e.preventDefault();
+        action();
+      };
+      btn.addEventListener('touchstart', trigger, { passive: false });
+      btn.addEventListener('click', trigger);
+    }
+
+    bindTouchButton('ctrl-left', moveLeft);
+    bindTouchButton('ctrl-right', moveRight);
+    bindTouchButton('ctrl-rotate', rotateCurrentPiece);
+    bindTouchButton('ctrl-down', softDrop);
+    bindTouchButton('ctrl-hard-drop', hardDrop);
+
+    // Modal & Header buttons
+    document.getElementById('btn-pause-header').addEventListener('click', togglePause);
+    document.getElementById('btn-resume').addEventListener('click', togglePause);
+    document.getElementById('btn-restart').addEventListener('click', initGame);
+
+    window.onload = function () {
+      loadSavedRecords();
+      initGame();
+    };
+  </script>
+</body>
+</html>
